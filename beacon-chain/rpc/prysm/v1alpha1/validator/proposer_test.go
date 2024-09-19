@@ -592,16 +592,6 @@ func TestServer_GetBeaconBlock_Electra(t *testing.T) {
 			ParentRoot: parentRoot[:],
 			StateRoot:  genesis.Block.StateRoot,
 			Body: &ethpb.BeaconBlockBodyElectra{
-				Consolidations: []*ethpb.SignedConsolidation{
-					{
-						Message: &ethpb.Consolidation{
-							SourceIndex: 1,
-							TargetIndex: 2,
-							Epoch:       3,
-						},
-						Signature: bytesutil.PadTo([]byte("sig"), 96),
-					},
-				},
 				RandaoReveal:  genesis.Block.Body.RandaoReveal,
 				Graffiti:      genesis.Block.Body.Graffiti,
 				Eth1Data:      genesis.Block.Body.Eth1Data,
@@ -644,18 +634,26 @@ func TestServer_GetBeaconBlock_Electra(t *testing.T) {
 			Amount:          789,
 		},
 	}
+	cr := []*enginev1.ConsolidationRequest{
+		{
+			SourceAddress: bytesutil.PadTo([]byte("sa"), 20),
+			SourcePubkey:  bytesutil.PadTo(privKeys[1].PublicKey().Marshal(), 48),
+			TargetPubkey:  bytesutil.PadTo(privKeys[2].PublicKey().Marshal(), 48),
+		},
+	}
 	payload := &enginev1.ExecutionPayloadElectra{
-		Timestamp:          uint64(timeStamp.Unix()),
-		ParentHash:         make([]byte, fieldparams.RootLength),
-		FeeRecipient:       make([]byte, fieldparams.FeeRecipientLength),
-		StateRoot:          make([]byte, fieldparams.RootLength),
-		ReceiptsRoot:       make([]byte, fieldparams.RootLength),
-		LogsBloom:          make([]byte, fieldparams.LogsBloomLength),
-		PrevRandao:         random,
-		BaseFeePerGas:      make([]byte, fieldparams.RootLength),
-		BlockHash:          make([]byte, fieldparams.RootLength),
-		DepositRequests:    dr,
-		WithdrawalRequests: wr,
+		Timestamp:             uint64(timeStamp.Unix()),
+		ParentHash:            make([]byte, fieldparams.RootLength),
+		FeeRecipient:          make([]byte, fieldparams.FeeRecipientLength),
+		StateRoot:             make([]byte, fieldparams.RootLength),
+		ReceiptsRoot:          make([]byte, fieldparams.RootLength),
+		LogsBloom:             make([]byte, fieldparams.LogsBloomLength),
+		PrevRandao:            random,
+		BaseFeePerGas:         make([]byte, fieldparams.RootLength),
+		BlockHash:             make([]byte, fieldparams.RootLength),
+		DepositRequests:       dr,
+		WithdrawalRequests:    wr,
+		ConsolidationRequests: cr,
 	}
 
 	proposerServer := getProposerServer(db, beaconState, parentRoot[:])
@@ -882,33 +880,6 @@ func TestProposer_ProposeBlock_OK(t *testing.T) {
 			err: "blob KZG commitments don't match number of blobs or KZG proofs",
 		},
 		{
-			name: "electra block no blob",
-			block: func(parent [32]byte) *ethpb.GenericSignedBeaconBlock {
-				sb := &ethpb.SignedBeaconBlockContentsElectra{
-					Block: &ethpb.SignedBeaconBlockElectra{
-						Block: &ethpb.BeaconBlockElectra{Slot: 5, ParentRoot: parent[:], Body: util.HydrateBeaconBlockBodyElectra(&ethpb.BeaconBlockBodyElectra{})},
-					},
-				}
-				blk := &ethpb.GenericSignedBeaconBlock_Electra{Electra: sb}
-				return &ethpb.GenericSignedBeaconBlock{Block: blk, IsBlinded: false}
-			},
-		},
-		{
-			name: "electra block some blob",
-			block: func(parent [32]byte) *ethpb.GenericSignedBeaconBlock {
-
-				sb := &ethpb.SignedBeaconBlockContentsElectra{
-					Block: &ethpb.SignedBeaconBlockElectra{
-						Block: &ethpb.BeaconBlockElectra{Slot: 5, ParentRoot: parent[:], Body: util.HydrateBeaconBlockBodyElectra(&ethpb.BeaconBlockBodyElectra{})},
-					},
-					KzgProofs: [][]byte{{0x01}, {0x02}, {0x03}},
-					Blobs:     [][]byte{{0x01}, {0x02}, {0x03}},
-				}
-				blk := &ethpb.GenericSignedBeaconBlock_Electra{Electra: sb}
-				return &ethpb.GenericSignedBeaconBlock{Block: blk, IsBlinded: false}
-			},
-		},
-		{
 			name: "blind deneb block some blobs",
 			block: func(parent [32]byte) *ethpb.GenericSignedBeaconBlock {
 				blockToPropose := util.NewBlindedBeaconBlockDeneb()
@@ -944,6 +915,57 @@ func TestProposer_ProposeBlock_OK(t *testing.T) {
 			},
 			useBuilder: true,
 			err:        "unblind sidecars failed: commitment value doesn't match block",
+		},
+		{
+			name: "electra block no blob",
+			block: func(parent [32]byte) *ethpb.GenericSignedBeaconBlock {
+				sb := &ethpb.SignedBeaconBlockContentsElectra{
+					Block: &ethpb.SignedBeaconBlockElectra{
+						Block: &ethpb.BeaconBlockElectra{Slot: 5, ParentRoot: parent[:], Body: util.HydrateBeaconBlockBodyElectra(&ethpb.BeaconBlockBodyElectra{})},
+					},
+				}
+				blk := &ethpb.GenericSignedBeaconBlock_Electra{Electra: sb}
+				return &ethpb.GenericSignedBeaconBlock{Block: blk, IsBlinded: false}
+			},
+		},
+		{
+			name: "electra block some blob",
+			block: func(parent [32]byte) *ethpb.GenericSignedBeaconBlock {
+				sb := &ethpb.SignedBeaconBlockContentsElectra{
+					Block: &ethpb.SignedBeaconBlockElectra{
+						Block: &ethpb.BeaconBlockElectra{
+							Slot: 5, ParentRoot: parent[:],
+							Body: util.HydrateBeaconBlockBodyElectra(&ethpb.BeaconBlockBodyElectra{
+								BlobKzgCommitments: [][]byte{bytesutil.PadTo([]byte("kc"), 48), bytesutil.PadTo([]byte("kc1"), 48), bytesutil.PadTo([]byte("kc2"), 48)},
+							}),
+						},
+					},
+					KzgProofs: [][]byte{{0x01}, {0x02}, {0x03}},
+					Blobs:     [][]byte{{0x01}, {0x02}, {0x03}},
+				}
+				blk := &ethpb.GenericSignedBeaconBlock_Electra{Electra: sb}
+				return &ethpb.GenericSignedBeaconBlock{Block: blk, IsBlinded: false}
+			},
+		},
+		{
+			name: "electra block some blob (kzg and blob count mismatch)",
+			block: func(parent [32]byte) *ethpb.GenericSignedBeaconBlock {
+				sb := &ethpb.SignedBeaconBlockContentsElectra{
+					Block: &ethpb.SignedBeaconBlockElectra{
+						Block: &ethpb.BeaconBlockElectra{
+							Slot: 5, ParentRoot: parent[:],
+							Body: util.HydrateBeaconBlockBodyElectra(&ethpb.BeaconBlockBodyElectra{
+								BlobKzgCommitments: [][]byte{bytesutil.PadTo([]byte("kc"), 48), bytesutil.PadTo([]byte("kc1"), 48)},
+							}),
+						},
+					},
+					KzgProofs: [][]byte{{0x01}, {0x02}, {0x03}},
+					Blobs:     [][]byte{{0x01}, {0x02}, {0x03}},
+				}
+				blk := &ethpb.GenericSignedBeaconBlock_Electra{Electra: sb}
+				return &ethpb.GenericSignedBeaconBlock{Block: blk, IsBlinded: false}
+			},
+			err: "blob KZG commitments don't match number of blobs or KZG proofs",
 		},
 	}
 
@@ -3093,4 +3115,16 @@ func TestProposer_GetParentHeadState(t *testing.T) {
 		require.NotEqual(t, [32]byte(str), [32]byte(genesisStr))
 		require.LogsContain(t, hook, "late block attempted reorg failed")
 	})
+}
+
+func TestProposer_ElectraBlobsAndProofs(t *testing.T) {
+	electraContents := &ethpb.SignedBeaconBlockContentsElectra{Block: &ethpb.SignedBeaconBlockElectra{}}
+	electraContents.KzgProofs = make([][]byte, 10)
+	electraContents.Blobs = make([][]byte, 10)
+
+	genBlock := &ethpb.GenericSignedBeaconBlock{Block: &ethpb.GenericSignedBeaconBlock_Electra{Electra: electraContents}}
+	blobs, proofs, err := blobsAndProofs(genBlock)
+	require.NoError(t, err)
+	require.Equal(t, 10, len(blobs))
+	require.Equal(t, 10, len(proofs))
 }

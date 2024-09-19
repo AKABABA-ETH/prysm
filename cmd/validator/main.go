@@ -50,7 +50,6 @@ func startNode(ctx *cli.Context) error {
 
 var appFlags = []cli.Flag{
 	flags.BeaconRPCProviderFlag,
-	flags.BeaconRPCGatewayProviderFlag,
 	flags.BeaconRESTApiProviderFlag,
 	flags.CertFlag,
 	flags.GraffitiFlag,
@@ -60,12 +59,12 @@ var appFlags = []cli.Flag{
 	flags.EnableRPCFlag,
 	flags.RPCHost,
 	flags.RPCPort,
-	flags.GRPCGatewayPort,
-	flags.GRPCGatewayHost,
+	flags.HTTPServerPort,
+	flags.HTTPServerHost,
 	flags.GRPCRetriesFlag,
 	flags.GRPCRetryDelayFlag,
 	flags.GRPCHeadersFlag,
-	flags.GRPCGatewayCorsDomain,
+	flags.HTTPServerCorsDomain,
 	flags.DisableAccountMetricsFlag,
 	flags.MonitoringPortFlag,
 	flags.SlasherRPCProviderFlag,
@@ -79,6 +78,7 @@ var appFlags = []cli.Flag{
 	// Consensys' Web3Signer flags
 	flags.Web3SignerURLFlag,
 	flags.Web3SignerPublicValidatorKeysFlag,
+	flags.Web3SignerKeyFileFlag,
 	flags.SuggestedFeeRecipientFlag,
 	flags.ProposerSettingsURLFlag,
 	flags.ProposerSettingsFlag,
@@ -190,6 +190,10 @@ func main() {
 
 			if err := debug.Setup(ctx); err != nil {
 				return errors.Wrap(err, "failed to setup debug")
+			}
+
+			if err := features.ValidateNetworkFlags(ctx); err != nil {
+				return errors.Wrap(err, "provided multiple network flags")
 			}
 
 			return cmd.ValidateNoArgs(ctx)

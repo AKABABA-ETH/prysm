@@ -40,6 +40,7 @@ import (
 //	    excess_blob_gas=pre.latest_execution_payload_header.excess_blob_gas,
 //	    deposit_requests_root=Root(),  # [New in Electra:EIP6110]
 //	    withdrawal_requests_root=Root(),  # [New in Electra:EIP7002],
+//	    consolidation_requests_root=Root(),  # [New in Electra:EIP7251]
 //	)
 //
 //	exit_epochs = [v.exit_epoch for v in pre.validators if v.exit_epoch != FAR_FUTURE_EPOCH]
@@ -244,25 +245,26 @@ func UpgradeToElectra(beaconState state.BeaconState) (state.BeaconState, error) 
 		CurrentSyncCommittee:        currentSyncCommittee,
 		NextSyncCommittee:           nextSyncCommittee,
 		LatestExecutionPayloadHeader: &enginev1.ExecutionPayloadHeaderElectra{
-			ParentHash:             payloadHeader.ParentHash(),
-			FeeRecipient:           payloadHeader.FeeRecipient(),
-			StateRoot:              payloadHeader.StateRoot(),
-			ReceiptsRoot:           payloadHeader.ReceiptsRoot(),
-			LogsBloom:              payloadHeader.LogsBloom(),
-			PrevRandao:             payloadHeader.PrevRandao(),
-			BlockNumber:            payloadHeader.BlockNumber(),
-			GasLimit:               payloadHeader.GasLimit(),
-			GasUsed:                payloadHeader.GasUsed(),
-			Timestamp:              payloadHeader.Timestamp(),
-			ExtraData:              payloadHeader.ExtraData(),
-			BaseFeePerGas:          payloadHeader.BaseFeePerGas(),
-			BlockHash:              payloadHeader.BlockHash(),
-			TransactionsRoot:       txRoot,
-			WithdrawalsRoot:        wdRoot,
-			ExcessBlobGas:          excessBlobGas,
-			BlobGasUsed:            blobGasUsed,
-			DepositRequestsRoot:    bytesutil.Bytes32(0), // [New in Electra:EIP6110]
-			WithdrawalRequestsRoot: bytesutil.Bytes32(0), // [New in Electra:EIP7002]
+			ParentHash:                payloadHeader.ParentHash(),
+			FeeRecipient:              payloadHeader.FeeRecipient(),
+			StateRoot:                 payloadHeader.StateRoot(),
+			ReceiptsRoot:              payloadHeader.ReceiptsRoot(),
+			LogsBloom:                 payloadHeader.LogsBloom(),
+			PrevRandao:                payloadHeader.PrevRandao(),
+			BlockNumber:               payloadHeader.BlockNumber(),
+			GasLimit:                  payloadHeader.GasLimit(),
+			GasUsed:                   payloadHeader.GasUsed(),
+			Timestamp:                 payloadHeader.Timestamp(),
+			ExtraData:                 payloadHeader.ExtraData(),
+			BaseFeePerGas:             payloadHeader.BaseFeePerGas(),
+			BlockHash:                 payloadHeader.BlockHash(),
+			TransactionsRoot:          txRoot,
+			WithdrawalsRoot:           wdRoot,
+			ExcessBlobGas:             excessBlobGas,
+			BlobGasUsed:               blobGasUsed,
+			DepositRequestsRoot:       bytesutil.Bytes32(0), // [New in Electra:EIP6110]
+			WithdrawalRequestsRoot:    bytesutil.Bytes32(0), // [New in Electra:EIP7002]
+			ConsolidationRequestsRoot: bytesutil.Bytes32(0), // [New in Electra:EIP7251]
 		},
 		NextWithdrawalIndex:          wi,
 		NextWithdrawalValidatorIndex: vi,
@@ -295,14 +297,14 @@ func UpgradeToElectra(beaconState state.BeaconState) (state.BeaconState, error) 
 	}
 
 	for _, index := range preActivationIndices {
-		if err := helpers.QueueEntireBalanceAndResetValidator(post, index); err != nil {
+		if err := QueueEntireBalanceAndResetValidator(post, index); err != nil {
 			return nil, errors.Wrap(err, "failed to queue entire balance and reset validator")
 		}
 	}
 
 	// Ensure early adopters of compounding credentials go through the activation churn
 	for _, index := range compoundWithdrawalIndices {
-		if err := helpers.QueueExcessActiveBalance(post, index); err != nil {
+		if err := QueueExcessActiveBalance(post, index); err != nil {
 			return nil, errors.Wrap(err, "failed to queue excess active balance")
 		}
 	}
