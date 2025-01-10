@@ -87,6 +87,7 @@ service BeaconNodeValidator {
         option (google.api.http) = {
             get: "/eth/v1alpha1/validator/activation/stream"
         };
+        option deprecated = true;
     }
 
     // ValidatorIndex retrieves a validator's index location in the beacon state's
@@ -410,6 +411,9 @@ message StreamBlocksResponse {
 
         // Representing a electra block.
         SignedBeaconBlockElectra electra_block = 6;
+
+        // Representing a fulu block.
+        SignedBeaconBlockFulu fulu_block = 7;
     }
 }
 

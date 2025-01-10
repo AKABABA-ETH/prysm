@@ -81,6 +81,11 @@ ssz_altair_objs = [
     "BeaconBlockBodyAltair",
     "BeaconStateAltair",
     "ContributionAndProof",
+    "LightClientHeaderAltair",
+    "LightClientBootstrapAltair",
+    "LightClientUpdateAltair",
+    "LightClientFinalityUpdateAltair",
+    "LightClientOptimisticUpdateAltair",
     "SignedBeaconBlockAltair",
     "SignedContributionAndProof",
     "SyncAggregate",
@@ -110,6 +115,11 @@ ssz_capella_objs = [
     "BlindedBeaconBlockCapella",
     "BuilderBidCapella",
     "HistoricalSummary",
+    "LightClientHeaderCapella",
+    "LightClientBootstrapCapella",
+    "LightClientUpdateCapella",
+    "LightClientFinalityUpdateCapella",
+    "LightClientOptimisticUpdateCapella",
     "SignedBLSToExecutionChange",
     "SignedBeaconBlockCapella",
     "SignedBlindedBeaconBlockCapella",
@@ -127,6 +137,11 @@ ssz_deneb_objs = [
     "BlobSidecar",
     "BlobSidecars",
     "BuilderBidDeneb",
+    "LightClientHeaderDeneb",
+    "LightClientBootstrapDeneb",
+    "LightClientUpdateDeneb",
+    "LightClientFinalityUpdateDeneb",
+    "LightClientOptimisticUpdateDeneb",
     "SignedBeaconBlockContentsDeneb",
     "SignedBeaconBlockDeneb",
     "SignedBlindedBeaconBlockDeneb",
@@ -137,14 +152,19 @@ ssz_electra_objs = [
     "AttestationElectra",
     "AttesterSlashingElectra",
     "BeaconBlockElectra",
-    "BeaconBlockElectra",
+    "BeaconBlockBodyElectra",
+    "BeaconBlockContentsElectra",
     "BeaconStateElectra",
     "BlindedBeaconBlockBodyElectra",
     "BlindedBeaconBlockElectra",
     "Consolidation",
     "IndexedAttestationElectra",
-    "PendingBalanceDeposit",
-    "PendingBalanceDeposits",
+    "LightClientHeaderElectra",
+    "LightClientBootstrapElectra",
+    "LightClientUpdateElectra",
+    "LightClientFinalityUpdateElectra",
+    "PendingDeposit",
+    "PendingDeposits",
     "PendingConsolidation",
     "PendingPartialWithdrawal",
     "SignedAggregateAttestationAndProofElectra",
@@ -152,6 +172,21 @@ ssz_electra_objs = [
     "SignedBeaconBlockElectra",
     "SignedBlindedBeaconBlockElectra",
     "SignedConsolidation",
+    "SingleAttestation",
+]
+
+ssz_fulu_objs = [
+    "BeaconBlockBodyFulu",
+    "BeaconBlockContentsFulu",
+    "BeaconBlockFulu",
+    "BeaconStateFulu",
+    "BlindedBeaconBlockBodyFulu",
+    "BlindedBeaconBlockFulu",
+    "DataColumnIdentifier",
+    "DataColumnSidecar",
+    "SignedBeaconBlockContentsFulu",
+    "SignedBeaconBlockFulu",
+    "SignedBlindedBeaconBlockFulu"
 ]
 
 ssz_gen_marshal(
@@ -232,6 +267,19 @@ ssz_gen_marshal(
 )
 
 ssz_gen_marshal(
+    name = "ssz_generated_fulu",
+    out = "fulu.ssz.go",
+    exclude_objs = ssz_phase0_objs + ssz_altair_objs + ssz_bellatrix_objs + ssz_capella_objs + ssz_deneb_objs + ssz_electra_objs,
+    go_proto = ":go_proto",
+    includes = [
+        "//consensus-types/primitives:go_default_library",
+        "//math:go_default_library",
+        "//proto/engine/v1:go_default_library",
+    ],
+    objs = ssz_fulu_objs,
+)
+
+ssz_gen_marshal(
     name = "ssz_generated_non_core",
     out = "non-core.ssz.go",
     go_proto = ":go_proto",
@@ -243,8 +291,10 @@ ssz_gen_marshal(
     objs = [
         "BeaconBlocksByRangeRequest",
         "BlobSidecarsByRangeRequest",
+        "DataColumnSidecarsByRangeRequest",
         "MetaDataV0",
         "MetaDataV1",
+        "MetaDataV2",
         "SignedValidatorRegistrationV1",
         "ValidatorRegistrationV1",
         "BuilderBid",
@@ -293,6 +343,7 @@ go_library(
         ":ssz_generated_capella",  # keep
         ":ssz_generated_deneb",  # keep
         ":ssz_generated_electra",  # keep
+        ":ssz_generated_fulu",  # keep
         ":ssz_generated_non_core",  # keep
         ":ssz_generated_phase0",  # keep
     ],
@@ -333,6 +384,8 @@ ssz_proto_files(
         "beacon_block.proto",
         "beacon_state.proto",
         "blobs.proto",
+        "light_client.proto",
+        "data_columns.proto",
         "sync_committee.proto",
         "withdrawals.proto",
     ],

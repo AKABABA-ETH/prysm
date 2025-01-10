@@ -287,6 +287,30 @@ func (s *Server) produceBlockV3(ctx context.Context, w http.ResponseWriter, r *h
 		handleProduceDenebV3(w, isSSZ, denebBlockContents, v1alpha1resp.PayloadValue, consensusBlockValue)
 		return
 	}
+	blindedElectraBlockContents, ok := v1alpha1resp.Block.(*eth.GenericBeaconBlock_BlindedElectra)
+	if ok {
+		w.Header().Set(api.VersionHeader, version.String(version.Electra))
+		handleProduceBlindedElectraV3(w, isSSZ, blindedElectraBlockContents, v1alpha1resp.PayloadValue, consensusBlockValue)
+		return
+	}
+	electraBlockContents, ok := v1alpha1resp.Block.(*eth.GenericBeaconBlock_Electra)
+	if ok {
+		w.Header().Set(api.VersionHeader, version.String(version.Electra))
+		handleProduceElectraV3(w, isSSZ, electraBlockContents, v1alpha1resp.PayloadValue, consensusBlockValue)
+		return
+	}
+	blindedFuluBlockContents, ok := v1alpha1resp.Block.(*eth.GenericBeaconBlock_BlindedFulu)
+	if ok {
+		w.Header().Set(api.VersionHeader, version.String(version.Fulu))
+		handleProduceBlindedFuluV3(w, isSSZ, blindedFuluBlockContents, v1alpha1resp.PayloadValue, consensusBlockValue)
+		return
+	}
+	fuluBlockContents, ok := v1alpha1resp.Block.(*eth.GenericBeaconBlock_Fulu)
+	if ok {
+		w.Header().Set(api.VersionHeader, version.String(version.Fulu))
+		handleProduceFuluV3(w, isSSZ, fuluBlockContents, v1alpha1resp.PayloadValue, consensusBlockValue)
+		return
+	}
 }
 
 func getConsensusBlockValue(ctx context.Context, blockRewardsFetcher rewards.BlockRewardsFetcher, i interface{} /* block as argument */) (string, *httputil.DefaultJsonError) {
@@ -581,6 +605,148 @@ func handleProduceDenebV3(
 	}
 	httputil.WriteJson(w, &structs.ProduceBlockV3Response{
 		Version:                 version.String(version.Deneb),
+		ExecutionPayloadBlinded: false,
+		ExecutionPayloadValue:   executionPayloadValue, // mev not available at this point
+		ConsensusBlockValue:     consensusBlockValue,
+		Data:                    jsonBytes,
+	})
+}
+
+func handleProduceBlindedElectraV3(
+	w http.ResponseWriter,
+	isSSZ bool,
+	blk *eth.GenericBeaconBlock_BlindedElectra,
+	executionPayloadValue string,
+	consensusPayloadValue string,
+) {
+	if isSSZ {
+		sszResp, err := blk.BlindedElectra.MarshalSSZ()
+		if err != nil {
+			httputil.HandleError(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		httputil.WriteSsz(w, sszResp, "blindedElectraBlockContents.ssz")
+		return
+	}
+	blindedBlock, err := structs.BlindedBeaconBlockElectraFromConsensus(blk.BlindedElectra)
+	if err != nil {
+		httputil.HandleError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	jsonBytes, err := json.Marshal(blindedBlock)
+	if err != nil {
+		httputil.HandleError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	httputil.WriteJson(w, &structs.ProduceBlockV3Response{
+		Version:                 version.String(version.Electra),
+		ExecutionPayloadBlinded: true,
+		ExecutionPayloadValue:   executionPayloadValue,
+		ConsensusBlockValue:     consensusPayloadValue,
+		Data:                    jsonBytes,
+	})
+}
+
+func handleProduceElectraV3(
+	w http.ResponseWriter,
+	isSSZ bool,
+	blk *eth.GenericBeaconBlock_Electra,
+	executionPayloadValue string,
+	consensusBlockValue string,
+) {
+	if isSSZ {
+		sszResp, err := blk.Electra.MarshalSSZ()
+		if err != nil {
+			httputil.HandleError(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		httputil.WriteSsz(w, sszResp, "electraBlockContents.ssz")
+		return
+	}
+
+	blockContents, err := structs.BeaconBlockContentsElectraFromConsensus(blk.Electra)
+	if err != nil {
+		httputil.HandleError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	jsonBytes, err := json.Marshal(blockContents)
+	if err != nil {
+		httputil.HandleError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	httputil.WriteJson(w, &structs.ProduceBlockV3Response{
+		Version:                 version.String(version.Electra),
+		ExecutionPayloadBlinded: false,
+		ExecutionPayloadValue:   executionPayloadValue, // mev not available at this point
+		ConsensusBlockValue:     consensusBlockValue,
+		Data:                    jsonBytes,
+	})
+}
+
+func handleProduceBlindedFuluV3(
+	w http.ResponseWriter,
+	isSSZ bool,
+	blk *eth.GenericBeaconBlock_BlindedFulu,
+	executionPayloadValue string,
+	consensusPayloadValue string,
+) {
+	if isSSZ {
+		sszResp, err := blk.BlindedFulu.MarshalSSZ()
+		if err != nil {
+			httputil.HandleError(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		httputil.WriteSsz(w, sszResp, "blindedFuluBlockContents.ssz")
+		return
+	}
+	blindedBlock, err := structs.BlindedBeaconBlockFuluFromConsensus(blk.BlindedFulu)
+	if err != nil {
+		httputil.HandleError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	jsonBytes, err := json.Marshal(blindedBlock)
+	if err != nil {
+		httputil.HandleError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	httputil.WriteJson(w, &structs.ProduceBlockV3Response{
+		Version:                 version.String(version.Fulu),
+		ExecutionPayloadBlinded: true,
+		ExecutionPayloadValue:   executionPayloadValue,
+		ConsensusBlockValue:     consensusPayloadValue,
+		Data:                    jsonBytes,
+	})
+}
+
+func handleProduceFuluV3(
+	w http.ResponseWriter,
+	isSSZ bool,
+	blk *eth.GenericBeaconBlock_Fulu,
+	executionPayloadValue string,
+	consensusBlockValue string,
+) {
+	if isSSZ {
+		sszResp, err := blk.Fulu.MarshalSSZ()
+		if err != nil {
+			httputil.HandleError(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		httputil.WriteSsz(w, sszResp, "fuluBlockContents.ssz")
+		return
+	}
+
+	blockContents, err := structs.BeaconBlockContentsFuluFromConsensus(blk.Fulu)
+	if err != nil {
+		httputil.HandleError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	jsonBytes, err := json.Marshal(blockContents)
+	if err != nil {
+		httputil.HandleError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	httputil.WriteJson(w, &structs.ProduceBlockV3Response{
+		Version:                 version.String(version.Fulu),
 		ExecutionPayloadBlinded: false,
 		ExecutionPayloadValue:   executionPayloadValue, // mev not available at this point
 		ConsensusBlockValue:     consensusBlockValue,

@@ -42,7 +42,9 @@ func ComputeBlockBodyFieldRoots(ctx context.Context, blockBody *BeaconBlockBody)
 	case version.Deneb:
 		fieldRoots = make([][]byte, 12)
 	case version.Electra:
-		fieldRoots = make([][]byte, 12)
+		fieldRoots = make([][]byte, 13)
+	case version.Fulu:
+		fieldRoots = make([][]byte, 13)
 	default:
 		return nil, fmt.Errorf("unknown block body version %s", version.String(blockBody.version))
 	}
@@ -179,6 +181,18 @@ func ComputeBlockBodyFieldRoots(ctx context.Context, blockBody *BeaconBlockBody)
 		copy(fieldRoots[11], root[:])
 	}
 
+	if blockBody.version >= version.Electra {
+		// Execution Requests
+		er, err := blockBody.ExecutionRequests()
+		if err != nil {
+			return nil, err
+		}
+		root, err := er.HashTreeRoot()
+		if err != nil {
+			return nil, err
+		}
+		copy(fieldRoots[12], root[:])
+	}
 	return fieldRoots, nil
 }
 
@@ -228,23 +242,13 @@ func PayloadProof(ctx context.Context, block interfaces.ReadOnlyBeaconBlock) ([]
 		return nil, errors.New("failed to cast block body")
 	}
 
-	blockBodyFieldRoots, err := ComputeBlockBodyFieldRoots(ctx, blockBody)
+	fieldRoots, err := ComputeBlockBodyFieldRoots(ctx, blockBody)
 	if err != nil {
 		return nil, err
 	}
 
-	blockBodyFieldRootsTrie := stateutil.Merkleize(blockBodyFieldRoots)
-	blockBodyProof := trie.ProofFromMerkleLayers(blockBodyFieldRootsTrie, payloadFieldIndex)
+	fieldRootsTrie := stateutil.Merkleize(fieldRoots)
+	proof := trie.ProofFromMerkleLayers(fieldRootsTrie, payloadFieldIndex)
 
-	beaconBlockFieldRoots, err := ComputeBlockFieldRoots(ctx, block)
-	if err != nil {
-		return nil, err
-	}
-
-	beaconBlockFieldRootsTrie := stateutil.Merkleize(beaconBlockFieldRoots)
-	beaconBlockProof := trie.ProofFromMerkleLayers(beaconBlockFieldRootsTrie, bodyFieldIndex)
-
-	finalProof := append(blockBodyProof, beaconBlockProof...)
-
-	return finalProof, nil
+	return proof, nil
 }

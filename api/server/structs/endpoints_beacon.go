@@ -21,11 +21,12 @@ type GetCommitteesResponse struct {
 }
 
 type ListAttestationsResponse struct {
-	Data []*Attestation `json:"data"`
+	Version string          `json:"version,omitempty"`
+	Data    json.RawMessage `json:"data"`
 }
 
 type SubmitAttestationsRequest struct {
-	Data []*Attestation `json:"data"`
+	Data json.RawMessage `json:"data"`
 }
 
 type ListVoluntaryExitsResponse struct {
@@ -133,6 +134,13 @@ type GetBlockAttestationsResponse struct {
 	Data                []*Attestation `json:"data"`
 }
 
+type GetBlockAttestationsV2Response struct {
+	Version             string          `json:"version"`
+	ExecutionOptimistic bool            `json:"execution_optimistic"`
+	Finalized           bool            `json:"finalized"`
+	Data                json.RawMessage `json:"data"` // Accepts both `Attestation` and `AttestationElectra` types
+}
+
 type GetStateRootResponse struct {
 	ExecutionOptimistic bool       `json:"execution_optimistic"`
 	Finalized           bool       `json:"finalized"`
@@ -169,7 +177,8 @@ type BLSToExecutionChangesPoolResponse struct {
 }
 
 type GetAttesterSlashingsResponse struct {
-	Data []*AttesterSlashing `json:"data"`
+	Version string          `json:"version,omitempty"`
+	Data    json.RawMessage `json:"data"` // Accepts both `[]*AttesterSlashing` and `[]*AttesterSlashingElectra` types
 }
 
 type GetProposerSlashingsResponse struct {

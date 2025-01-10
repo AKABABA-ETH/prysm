@@ -841,7 +841,6 @@ func computeProposerIndexWithValidators(validators []*ethpb.Validator, activeInd
 	if length == 0 {
 		return 0, errors.New("empty active indices list")
 	}
-	maxRandomByte := uint64(1<<8 - 1)
 	hashFunc := hash.CustomSHA256Hasher()
 
 	for i := uint64(0); ; i++ {
@@ -860,7 +859,7 @@ func computeProposerIndexWithValidators(validators []*ethpb.Validator, activeInd
 		if v != nil {
 			effectiveBal = v.EffectiveBalance
 		}
-		if effectiveBal*maxRandomByte >= params.BeaconConfig().MaxEffectiveBalance*uint64(randomByte) {
+		if effectiveBal*fieldparams.MaxRandomByte >= params.BeaconConfig().MaxEffectiveBalance*uint64(randomByte) {
 			return candidateIndex, nil
 		}
 	}
@@ -975,13 +974,6 @@ func TestIsFullyWithdrawableValidator(t *testing.T) {
 		want      bool
 	}{
 		{
-			name:      "Handles nil case",
-			validator: nil,
-			balance:   0,
-			epoch:     0,
-			want:      false,
-		},
-		{
 			name: "No ETH1 prefix",
 			validator: &ethpb.Validator{
 				WithdrawalCredentials: []byte{0xFA, 0xCC},
@@ -1036,7 +1028,9 @@ func TestIsFullyWithdrawableValidator(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, helpers.IsFullyWithdrawableValidator(tt.validator, tt.balance, tt.epoch, tt.fork))
+			v, err := state_native.NewValidator(tt.validator)
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, helpers.IsFullyWithdrawableValidator(v, tt.balance, tt.epoch, tt.fork))
 		})
 	}
 }
@@ -1050,13 +1044,6 @@ func TestIsPartiallyWithdrawableValidator(t *testing.T) {
 		fork      int
 		want      bool
 	}{
-		{
-			name:      "Handles nil case",
-			validator: nil,
-			balance:   0,
-			epoch:     0,
-			want:      false,
-		},
 		{
 			name: "No ETH1 prefix",
 			validator: &ethpb.Validator{
@@ -1113,7 +1100,9 @@ func TestIsPartiallyWithdrawableValidator(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, helpers.IsPartiallyWithdrawableValidator(tt.validator, tt.balance, tt.epoch, tt.fork))
+			v, err := state_native.NewValidator(tt.validator)
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, helpers.IsPartiallyWithdrawableValidator(v, tt.balance, tt.epoch, tt.fork))
 		})
 	}
 }
@@ -1167,15 +1156,12 @@ func TestValidatorMaxEffectiveBalance(t *testing.T) {
 			validator: &ethpb.Validator{WithdrawalCredentials: []byte{params.BeaconConfig().ETH1AddressWithdrawalPrefixByte, 0xCC}},
 			want:      params.BeaconConfig().MinActivationBalance,
 		},
-		{
-			"Handles nil case",
-			nil,
-			params.BeaconConfig().MinActivationBalance,
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, helpers.ValidatorMaxEffectiveBalance(tt.validator))
+			v, err := state_native.NewValidator(tt.validator)
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, helpers.ValidatorMaxEffectiveBalance(v))
 		})
 	}
 	// Sanity check that MinActivationBalance equals (pre-electra) MaxEffectiveBalance
